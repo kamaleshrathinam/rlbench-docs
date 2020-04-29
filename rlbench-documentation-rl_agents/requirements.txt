@@ -1,0 +1,8 @@
+git+git://github.com/valayDave/metaflow@kube_v1
+torch
+torchvision
+matplotlib
+plotly
+chart-studio
+pandas
+gym
