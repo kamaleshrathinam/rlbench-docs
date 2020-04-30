@@ -14,7 +14,12 @@ sys.path.append('..')
 from models.Agent import TorchAgent
 import logger
 from scipy.spatial import distance
+import torch
 
+# if torch.cuda.is_available():
+#     device = torch.device('cuda:0')
+# else:
+device = torch.device('cpu')
 
 class FullyConnectedPolicyEstimator(nn.Module):
     
@@ -48,7 +53,7 @@ class ImmitationLearningAgent(TorchAgent):
         super(TorchAgent,self).__init__(collect_gradients=collect_gradients)
         self.learning_rate = learning_rate
         # action should contain 1 extra value for gripper open close state
-        self.neural_network = FullyConnectedPolicyEstimator(7,8)
+        self.neural_network = FullyConnectedPolicyEstimator(7,8).to(device)
         self.optimizer = optim.SGD(self.neural_network.parameters(), lr=learning_rate, momentum=0.9)
         self.loss_function = nn.SmoothL1Loss()
         self.training_data = None
@@ -103,8 +108,9 @@ class ImmitationLearningAgent(TorchAgent):
             steps = 0
             for batch_idx, (data, target) in enumerate(self.data_loader):
                 data, target = Variable(data), Variable(target)
+                data,target=data.to(device),target.to(device)
                 self.optimizer.zero_grad()
-                network_pred = self.neural_network(data.float()) 
+                network_pred = self.neural_network(data.float()).to(device)
                 loss = self.loss_function(network_pred,target.float())
                 loss.backward()
                 if self.collect_gradients:
@@ -116,10 +122,11 @@ class ImmitationLearningAgent(TorchAgent):
             self.logger.info('[%d] loss: %.6f' % (epoch + 1, running_loss / (steps+1)))
 
     def predict_action(self, demonstration_episode:List[Observation],**kwargs) -> np.array:
-        self.neural_network.eval()
+        self.neural_network.eval().to(device)
         train_vectors = self.get_train_vectors([demonstration_episode])
         input_val = Variable(torch.from_numpy(train_vectors[0]))
-        output = self.neural_network(input_val.float())
+
+        output = self.neural_network(input_val.float()).to(device)
         return output.data.cpu().numpy()
         # return np.random.uniform(size=(len(batch), 7))
 

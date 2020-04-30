@@ -81,19 +81,59 @@ class TrainingSimulatorFlow(FlowSpec):
     @step
     def start(self):
         print("Importing data in this step")
-        self.num_demos=1000
-        self.num_epochs=1 # Training epochs
+        self.num_demos=2
+        self.num_epochs=2 # Training epochs
         self.episode_length=100
-        self.num_episodes=50 # Simulated Testing Epochs.
+        self.num_episodes=3 # Simulated Testing Epochs.
         self.variation_number = 0     
         self.collect_gradients = True                                                                                                                                                                           
         self.agent_modules = [
-        {
-            'module_name':'models.ImmitationMutant',
-            'agent_name': 'ImmitationLearningMutantAgent',
-            'args':{},
-            'reporting_name':'ImmitationLearningMutantAgent'
-        }]
+        # {
+        #         'module_name': 'models.Imitation',
+        #         'agent_name': 'Imitation',
+        #         'args': {},
+        #         'reporting_name': 'New_Imitation'
+        #      }
+            #,
+            # {
+            #     'module_name': 'models.SmartImmitationAgent',
+            #     'agent_name': 'SimpleImmitationLearningAgent',
+            #     'args': {'num_layers': 4},
+            #     'reporting_name': 'SimpleImmitationLearningAgent__4'
+            # },
+            # {
+            #     'module_name': 'models.ImmitationLearning',
+            #     'agent_name': 'ImmitationLearningAgent',
+            #     'args': {},
+            #     'reporting_name': 'Idiot_ImmitationLearningAgent'
+            # },
+            #
+            # {
+            #     'module_name': 'models.SmartImmitationAgent',
+            #     'agent_name': 'SimpleImmitationLearningAgent',
+            #     'args': {'num_layers': 1},
+            #     'reporting_name': 'SimpleImmitationLearningAgent__1'
+            # },
+            # {
+            #     'module_name': 'models.SmartImmitationAgent',
+            #     'agent_name': 'SimpleImmitationLearningAgent',
+            #     'args': {'num_layers': 2},
+            #     'reporting_name': 'SimpleImmitationLearningAgent__2'
+            # },
+            # {
+            #     'module_name': 'models.ImmitationMutant',
+            #     'agent_name': 'ImmitationLearningMutantAgent',
+            #     'args': {},
+            #     'reporting_name': 'ImmitationLearningMutantAgent'
+            # },
+            {
+                'module_name': 'models.Depth_Conv',
+                'agent_name': 'Imitation_Depth',
+                'args': {},
+                'reporting_name': 'Savior'
+            }
+
+        ]
         self.next(self.train,foreach='agent_modules')
 
     @retry(times=4)
@@ -105,19 +145,24 @@ class TrainingSimulatorFlow(FlowSpec):
         agent_module = importlib.import_module(self.input['module_name'])
         agent = getattr(agent_module,self.input['agent_name'])(**self.input['args'],collect_gradients=self.collect_gradients)
         from rlbench.tasks.right_target import RightTarget
-        curr_env = ReachTargetSimulationEnv(dataset_root='/home/vicky/Desktop/Robot_Learning_Project/rlbench_data',headless=True,task=RightTarget)
+        from rlbench.tasks.left_target import LeftTarget
+        from rlbench.tasks.reach_target import ReachTarget
+
+        curr_env = ReachTargetSimulationEnv(dataset_root='/home/vicky/Desktop/Robot_Learning_Project/rlbench_data',headless=True,task=LeftTarget)
         curr_env.task._variation_number = self.variation_number
         # Set image_paths_output=True when loading dataset from file if images also dont need to be loaded for dataset
 
 
-        demos = curr_env.get_demos(self.num_demos,live_demos=False,image_paths_output=True)
-        agent.load_model('/home/vicky/Desktop/Robot_Learning_Project/savedmodels/ImmitationLearningMutantAgent-2020-04-28-15-45.pt')
+        demos = curr_env.get_demos(self.num_demos,live_demos=False,image_paths_output=False)
+        agent.load_model('/home/vicky/Desktop/Robot_Learning_Project/savedmodels/Imitation_Depth-Left-4002020-04-30-10-38.pt')
 
         agent.injest_demonstrations(demos)   
         loss = agent.train_agent(self.num_epochs)
+        #
         # current_time = time.localtime()
-        # model_name = agent.__class__.__name__ + '-' + time.strftime('%Y-%m-%d-%H-%M', current_time)
+        # model_name = agent.__class__.__name__ + '-' +'LvsL'+ time.strftime('%Y-%m-%d-%H-%M', current_time)
         # agent.save_model('/home/vicky/Desktop/Robot_Learning_Project/savedmodels/' + model_name + '.pt')
+
         self.loss = loss
         self.total_data_size = agent.total_train_size
         self.agent_name = self.input['reporting_name']
@@ -137,7 +182,8 @@ class TrainingSimulatorFlow(FlowSpec):
         agent = getattr(agent_module,self.input['agent_name'])(**self.input['args'])
         from rlbench.tasks.right_target import RightTarget
         from rlbench.tasks.left_target import LeftTarget
-        curr_env = ReachTargetSimulationEnv(headless=True,episode_length=self.episode_length,num_episodes=self.num_episodes,task=RightTarget)
+        from rlbench.tasks.reach_target import ReachTarget
+        curr_env = ReachTargetSimulationEnv(headless=False,episode_length=self.episode_length,num_episodes=self.num_episodes,task=RightTarget)
         agent.load_model_from_object(self.model)
         simulation_analytics = curr_env.run_trained_agent(agent)
         self.simulation_analytics = simulation_analytics
